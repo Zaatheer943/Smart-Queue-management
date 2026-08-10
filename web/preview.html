@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueWise - Device Preview</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Toolbar */
+    .top-toolbar {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .toolbar-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toolbar-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toolbar-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .toolbar-btn.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .toolbar-btn.secondary {
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .toolbar-btn.secondary:hover {
+      background: #e0e0e0;
+    }
+
+    /* Main Preview Area */
+    .preview-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      position: relative;
+    }
+
+    /* iPhone Device Frame */
+    .device-frame {
+      width: 390px;
+      height: 844px;
+      background: #1a1a1a;
+      border-radius: 50px;
+      padding: 12px;
+      box-shadow: 
+        0 0 0 2px #2a2a2a,
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 100px rgba(102, 126, 234, 0.3);
+      position: relative;
+      transition: transform 0.3s ease;
+    }
+
+    .device-frame.rotated {
+      transform: rotate(90deg);
+    }
+
+    .device-screen {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      border-radius: 40px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 37px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dynamic-island::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      background: #1a1a1a;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      z-index: 50;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Iframe */
+    .app-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+      border-radius: 40px;
+    }
+
+    /* Floating Controls */
+    .floating-controls {
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .control-btn {
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: #f5f5f5;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-size: 20px;
+    }
+
+    .control-btn:hover {
+      background: #e0e0e0;
+      transform: scale(1.05);
+    }
+
+    .control-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .control-tooltip {
+      position: absolute;
+      right: 60px;
+      background: #333;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .control-btn:hover .control-tooltip {
+      opacity: 1;
+    }
+
+    /* Responsive Scaling */
+    @media (max-width: 1200px) {
+      .device-frame {
+        transform: scale(0.85);
+      }
+      
+      .floating-controls {
+        right: 20px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .device-frame {
+        transform: scale(0.7);
+      }
+      
+      .preview-container {
+        padding: 20px;
+      }
+      
+      .floating-controls {
+        right: 10px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .device-frame {
+        transform: scale(0.5);
+      }
+      
+      .floating-controls {
+        display: none;
+      }
+      
+      .toolbar-title {
+        font-size: 16px;
+      }
+    }
+
+    /* Fullscreen Mode */
+    body.fullscreen .top-toolbar {
+      display: none;
+    }
+
+    body.fullscreen .preview-container {
+      padding: 20px;
+    }
+
+    body.fullscreen .floating-controls {
+      top: auto;
+      bottom: 20px;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Toolbar -->
+  <div class="top-toolbar">
+    <div class="toolbar-left">
+      <span class="toolbar-title">QueueWise Preview</span>
+    </div>
+    <div class="toolbar-right">
+      <button class="toolbar-btn secondary" onclick="goBack()">
+        ← Back
+      </button>
+      <button class="toolbar-btn secondary" onclick="toggleFullscreen()">
+        ⛶ Fullscreen
+      </button>
+      <button class="toolbar-btn primary" onclick="openApp()">
+        Open App →
+      </button>
+    </div>
+  </div>
+
+  <!-- Preview Container -->
+  <div class="preview-container">
+    <!-- iPhone Device Frame -->
+    <div class="device-frame" id="deviceFrame">
+      <div class="device-screen">
+        <!-- Dynamic Island -->
+        <div class="dynamic-island"></div>
+        
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <div class="status-bar-left">
+            <span id="statusTime">9:41</span>
+          </div>
+          <div class="status-bar-right">
+            <span>5G</span>
+            <span>📶</span>
+            <span>🔋</span>
+          </div>
+        </div>
+        
+        <!-- Flutter App Iframe -->
+        <iframe 
+          src="index.html" 
+          class="app-iframe" 
+          id="appIframe"
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+        ></iframe>
+      </div>
+    </div>
+
+    <!-- Floating Controls -->
+    <div class="floating-controls">
+      <button class="control-btn" onclick="rotateDevice()" title="Rotate Device">
+        🔄
+        <span class="control-tooltip">Rotate</span>
+      </button>
+      <button class="control-btn" onclick="reloadApp()" title="Reload App">
+        🔄
+        <span class="control-tooltip">Reload</span>
+      </button>
+      <button class="control-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+        ⛶
+        <span class="control-tooltip">Fullscreen</span>
+      </button>
+      <button class="control-btn" onclick="openApp()" title="Open Full App">
+        ↗️
+        <span class="control-tooltip">Open App</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Update status bar time
+    function updateStatusTime() {
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('statusTime').textContent = `${hours}:${minutes}`;
+    }
+    
+    updateStatusTime();
+    setInterval(updateStatusTime, 1000);
+
+    // Rotate device
+    function rotateDevice() {
+      const deviceFrame = document.getElementById('deviceFrame');
+      deviceFrame.classList.toggle('rotated');
+    }
+
+    // Reload app
+    function reloadApp() {
+      const iframe = document.getElementById('appIframe');
+      iframe.src = iframe.src;
+    }
+
+    // Toggle fullscreen
+    function toggleFullscreen() {
+      document.body.classList.toggle('fullscreen');
+      
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Open full app
+    function openApp() {
+      window.open('index.html', '_blank');
+    }
+
+    // Go back
+    function goBack() {
+      window.history.back();
+    }
+
+    // Handle escape key to exit fullscreen
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.body.classList.remove('fullscreen');
+      }
+    });
+  </script>
+</body>
+</html>

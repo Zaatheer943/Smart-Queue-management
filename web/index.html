@@ -20,9 +20,6 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
 
-  <!-- Mobile viewport settings -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -34,82 +31,16 @@
 
   <title>queuewise</title>
   <link rel="manifest" href="manifest.json">
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #1a1a1a;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      overflow: hidden;
-    }
-
-    #mobile-frame {
-      width: 390px;
-      height: 844px;
-      background-color: #ffffff;
-      border-radius: 44px;
-      box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
-      overflow: hidden;
-      position: relative;
-      border: 12px solid #2c2c2c;
-      display: flex;
-      flex-direction: column;
-    }
-
-    #mobile-notch {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 120px;
-      height: 32px;
-      background-color: #2c2c2c;
-      border-radius: 0 0 20px 20px;
-      z-index: 10000;
-    }
-
-    #flutter_target {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* Ensure Flutter canvas fills the target */
-    #flutter_target > * {
-      width: 100% !important;
-      height: 100% !important;
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-    }
-
-    /* Hide any scrollbars */
-    ::-webkit-scrollbar {
-      display: none;
-    }
-  </style>
 </head>
 <body>
-  <div id="mobile-frame">
-    <div id="mobile-notch"></div>
-    <div id="flutter_target">
-      <!--
-        You can customize the "flutter_bootstrap.js" script.
-        This is useful to provide a custom configuration to the Flutter loader
-        or to give the user feedback during the initialization process.
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
 
-        For more details:
-        * https://docs.flutter.dev/platform-integration/web/initialization
-      -->
-      <script src="flutter_bootstrap.js" async></script>
-    </div>
-  </div>
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
