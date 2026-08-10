@@ -129,15 +129,44 @@ class ServicesScreen extends ConsumerWidget {
 
             if (confirmed == true) {
               // Join the queue
-              await ref.read(queueProviderFamily(user.uid).notifier).joinQueue(
-                    organisationId: organisationId,
-                    serviceId: service.id,
-                    userId: user.uid,
+              try {
+                await ref.read(queueProviderFamily(user.uid).notifier).joinQueue(
+                      organisationId: organisationId,
+                      serviceId: service.id,
+                      userId: user.uid,
+                    );
+
+                // Get the token from state
+                final queueState = ref.read(queueProviderFamily(user.uid));
+                final token = queueState.activeToken;
+
+                // Show success message with token number
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Queue joined successfully! Your token number is #${token?.tokenNumber ?? 'Loading...'}',
+                      ),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 4),
+                    ),
                   );
 
-              // Navigate to active queue screen
-              if (context.mounted) {
-                context.go(AppRouter.queue);
+                  // Navigate to active queue screen after showing message
+                  await Future.delayed(const Duration(seconds: 2));
+                  if (context.mounted) {
+                    context.go(AppRouter.queue);
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error joining queue: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             }
           },

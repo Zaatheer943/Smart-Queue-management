@@ -8,6 +8,9 @@ class TokenModel {
   final String organisationId;
   final String serviceId;
   final String userId;
+  final String userName;
+  final String userEmail;
+  final String userPhone;
   final int tokenNumber;
   final String status;
   final DateTime joinedAt;
@@ -22,6 +25,9 @@ class TokenModel {
     required this.organisationId,
     required this.serviceId,
     required this.userId,
+    this.userName = '',
+    this.userEmail = '',
+    this.userPhone = '',
     required this.tokenNumber,
     this.status = AppConstants.tokenStatusWaiting,
     required this.joinedAt,
@@ -40,6 +46,9 @@ class TokenModel {
       organisationId: data['organisationId'] as String? ?? '',
       serviceId: data['serviceId'] as String? ?? '',
       userId: data['userId'] as String? ?? '',
+      userName: data['userName'] as String? ?? '',
+      userEmail: data['userEmail'] as String? ?? '',
+      userPhone: data['userPhone'] as String? ?? '',
       tokenNumber: data['tokenNumber'] as int? ?? 0,
       status: data['status'] as String? ?? AppConstants.tokenStatusWaiting,
       joinedAt: (data['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -58,6 +67,9 @@ class TokenModel {
       'organisationId': organisationId,
       'serviceId': serviceId,
       'userId': userId,
+      'userName': userName,
+      'userEmail': userEmail,
+      'userPhone': userPhone,
       'tokenNumber': tokenNumber,
       'status': status,
       'joinedAt': Timestamp.fromDate(joinedAt),
@@ -75,6 +87,9 @@ class TokenModel {
     String? organisationId,
     String? serviceId,
     String? userId,
+    String? userName,
+    String? userEmail,
+    String? userPhone,
     int? tokenNumber,
     String? status,
     DateTime? joinedAt,
@@ -89,6 +104,9 @@ class TokenModel {
       organisationId: organisationId ?? this.organisationId,
       serviceId: serviceId ?? this.serviceId,
       userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      userEmail: userEmail ?? this.userEmail,
+      userPhone: userPhone ?? this.userPhone,
       tokenNumber: tokenNumber ?? this.tokenNumber,
       status: status ?? this.status,
       joinedAt: joinedAt ?? this.joinedAt,

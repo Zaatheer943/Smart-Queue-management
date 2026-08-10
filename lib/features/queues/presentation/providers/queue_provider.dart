@@ -44,7 +44,19 @@ class QueueState {
   }
 
   /// Get people ahead
-  int get peopleAhead => 0; // Will be calculated separately
+  int get peopleAhead {
+    final token = activeToken;
+    if (token == null || queue == null) return 0;
+    
+    // Calculate based on current serving number and user's token number
+    // People ahead = (user's token number - current serving number - 1)
+    // But only if user's token is greater than current serving
+    final currentServing = queue!.currentServingNumber;
+    final userToken = token.tokenNumber;
+    
+    if (userToken <= currentServing) return 0;
+    return userToken - currentServing - 1;
+  }
 
   /// Get estimated wait time
   int get estimatedWaitMinutes => activeToken?.estimatedWaitMinutes ?? 0;
@@ -77,9 +89,12 @@ class QueueNotifier extends StateNotifier<QueueState> {
         errorMessage: e.message,
       );
     } catch (e) {
+      debugPrint('Error loading active token: $e');
+      // Don't set error state for permission issues - user might not be in a queue
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Failed to load active token',
+        activeToken: null,
+        queue: null,
       );
     }
   }
@@ -169,6 +184,133 @@ class QueueNotifier extends StateNotifier<QueueState> {
   void clearError() {
     state = state.copyWith(errorMessage: null);
   }
+
+  /// Staff: Call next customer
+  Future<TokenModel?> callNextCustomer(String organisationId, String queueId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final token = await _repository.callNextCustomer(organisationId, queueId);
+      state = state.copyWith(isLoading: false);
+      return token;
+    } on DatabaseException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+      return null;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to call next customer',
+      );
+      return null;
+    }
+  }
+
+  /// Staff: Start serving
+  Future<void> startServing(String tokenId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.startServing(tokenId);
+      state = state.copyWith(isLoading: false);
+    } on DatabaseException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to start serving',
+      );
+    }
+  }
+
+  /// Staff: Complete service
+  Future<void> completeService(String tokenId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.completeService(tokenId);
+      state = state.copyWith(isLoading: false);
+    } on DatabaseException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to complete service',
+      );
+    }
+  }
+
+  /// Staff: Skip customer
+  Future<void> skipCustomer(String tokenId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.skipCustomer(tokenId);
+      state = state.copyWith(isLoading: false);
+    } on DatabaseException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to skip customer',
+      );
+    }
+  }
+
+  /// Staff: Recall customer
+  Future<void> recallCustomer(String tokenId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.recallCustomer(tokenId);
+      state = state.copyWith(isLoading: false);
+    } on DatabaseException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to recall customer',
+      );
+    }
+  }
+
+  /// Staff: Mark no-show
+  Future<void> markNoShow(String tokenId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.markNoShow(tokenId);
+      state = state.copyWith(isLoading: false);
+    } on DatabaseException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to mark no-show',
+      );
+    }
+  }
+
+  /// Get queue statistics
+  Future<Map<String, dynamic>> getQueueStatistics(String organisationId) async {
+    try {
+      return await _repository.getQueueStatistics(organisationId);
+    } catch (e) {
+      debugPrint('Error getting queue statistics: $e');
+      return {};
+    }
+  }
 }
 
 /// Queue provider (requires userId)
@@ -206,8 +348,9 @@ final queueStreamProvider = StreamProvider.family<QueueModel?, String>(
 /// Real-time token stream provider
 final tokenStreamProvider = StreamProvider.family<TokenModel?, String>(
   (ref, tokenId) {
-    // Need to search for the token across organisations
-    // For simplicity, we'll use a different approach
+    // For now, return a stream that emits null
+    // In production, you'd want to store the full path (orgId, queueId) with the token
+    // to avoid searching across all organisations
     return Stream.value(null);
   },
 );

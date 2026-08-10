@@ -17,6 +17,7 @@ class AppConstants {
 
   // User Roles
   static const String roleCustomer = 'customer';
+  static const String roleStaff = 'staff';
   static const String roleAdmin = 'admin';
 
   // Token Status

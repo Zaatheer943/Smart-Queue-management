@@ -7,7 +7,9 @@ import 'package:queuewise/features/authentication/presentation/providers/auth_pr
 
 /// Login screen with improved UI/UX
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  final String? selectedRole;
+  
+  const LoginScreen({super.key, this.selectedRole});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -41,7 +43,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
 
       if (mounted) {
-        context.go(AppRouter.home);
+        // Wait a moment for the state to update with user role
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Redirect based on user role
+        final isAdmin = ref.read(isAdminProvider);
+        if (isAdmin) {
+          context.go(AppRouter.adminDashboard);
+        } else {
+          context.go(AppRouter.organisations);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -116,7 +127,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 8),
+                    
+                    // Selected role indicator
+                    if (widget.selectedRole != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: widget.selectedRole == 'admin' 
+                              ? Colors.orange.withValues(alpha: 0.1)
+                              : theme.colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              widget.selectedRole == 'admin' 
+                                  ? Icons.admin_panel_settings 
+                                  : Icons.person,
+                              size: 16,
+                              color: widget.selectedRole == 'admin' 
+                                  ? Colors.orange 
+                                  : theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.selectedRole == 'admin' ? 'Admin Login' : 'User Login',
+                              style: TextStyle(
+                                color: widget.selectedRole == 'admin' 
+                                    ? Colors.orange 
+                                    : theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (widget.selectedRole != null) const SizedBox(height: 8),
+                    
+                    // Back to landing
+                    if (widget.selectedRole != null)
+                      TextButton.icon(
+                        onPressed: () {
+                          context.go(AppRouter.landing);
+                        },
+                        icon: const Icon(Icons.arrow_back, size: 16),
+                        label: const Text('Back'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    if (widget.selectedRole != null) const SizedBox(height: 24),
+                    
+                    const SizedBox(height: 24),
                     
                     // Error message
                     if (errorMessage != null)

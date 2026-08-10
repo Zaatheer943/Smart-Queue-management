@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:queuewise/app/router.dart';
+import 'package:queuewise/features/authentication/presentation/providers/auth_provider.dart';
 import 'package:queuewise/features/organisations/presentation/providers/organisation_provider.dart';
 import 'package:queuewise/shared/models/organisation_model.dart';
 
@@ -29,10 +30,44 @@ class _OrganisationsScreenState extends ConsumerState<OrganisationsScreen> {
     final organisations = organisationsState.organisations;
     final isLoading = organisationsState.isLoading;
     final errorMessage = organisationsState.errorMessage;
+    final user = ref.watch(currentUserProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Organisations'),
+        leading: user?.role == 'customer'
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  // For customers, sign out to go back to landing
+                  ref.read(authProvider.notifier).signOut().then((_) {
+                    if (context.mounted) {
+                      context.go(AppRouter.landing);
+                    }
+                  });
+                },
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  // Navigate based on user role (since router uses go() which replaces stack)
+                  if (user == null) {
+                    context.go(AppRouter.landing);
+                    return;
+                  }
+
+                  switch (user.role) {
+                    case 'admin':
+                      context.go(AppRouter.adminDashboard);
+                      break;
+                    case 'staff':
+                      context.go(AppRouter.staffDashboard);
+                      break;
+                    default:
+                      context.go(AppRouter.landing);
+                  }
+                },
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

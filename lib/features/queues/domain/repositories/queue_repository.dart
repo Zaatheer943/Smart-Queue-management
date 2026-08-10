@@ -30,4 +30,25 @@ abstract class QueueRepository {
 
   /// Update queue statistics
   Future<void> updateQueueStats(String queueId, int totalWaiting);
+
+  /// Staff: Call next customer in queue
+  Future<TokenModel?> callNextCustomer(String organisationId, String queueId);
+
+  /// Staff: Start serving a customer
+  Future<void> startServing(String tokenId);
+
+  /// Staff: Complete service for a customer
+  Future<void> completeService(String tokenId);
+
+  /// Staff: Skip a customer
+  Future<void> skipCustomer(String tokenId);
+
+  /// Staff: Recall a skipped customer
+  Future<void> recallCustomer(String tokenId);
+
+  /// Staff: Mark customer as no-show
+  Future<void> markNoShow(String tokenId);
+
+  /// Get queue statistics
+  Future<Map<String, dynamic>> getQueueStatistics(String organisationId);
 }

@@ -5,15 +5,15 @@ import 'package:queuewise/app/router.dart';
 import 'package:queuewise/core/utils/validators.dart';
 import 'package:queuewise/features/authentication/presentation/providers/auth_provider.dart';
 
-/// Registration screen
-class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+/// Screen for admins to create new admin accounts
+class CreateAdminScreen extends ConsumerStatefulWidget {
+  const CreateAdminScreen({super.key});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<CreateAdminScreen> createState() => _CreateAdminScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _CreateAdminScreenState extends ConsumerState<CreateAdminScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -31,7 +31,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _handleRegister() async {
+  Future<void> _handleCreateAdmin() async {
     if (_formKey.currentState!.validate()) {
       await ref.read(authProvider.notifier).register(
             name: _nameController.text.trim(),
@@ -39,23 +39,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             password: _passwordController.text,
           );
       
-      // Check if registration was successful
-      final authState = ref.read(authProvider);
-      if (authState.user != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        
-        // Navigate to login screen after a short delay
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            context.go(AppRouter.login);
-          }
-        });
+      // After registration, update the user's role to admin
+      if (mounted) {
+        final authState = ref.read(authProvider);
+        if (authState.user != null) {
+          // Note: In a real app, this should be done via Cloud Functions for security
+          // For now, we'll show a message that the admin needs to manually update the role
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account created. Please manually set role to admin in Firebase Console.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+          context.pop();
+        }
       }
     }
   }
@@ -68,7 +65,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: const Text('Create Admin Account'),
       ),
       body: SafeArea(
         child: Center(
@@ -80,15 +77,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo/Title
+                  // Icon
                   Icon(
-                    Icons.person_add,
+                    Icons.admin_panel_settings,
                     size: 64,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Join QueueWise',
+                    'Create New Admin',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -96,7 +93,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Create your account to get started',
+                    'Create a new administrator account',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
@@ -111,7 +108,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Full Name',
-                      hintText: 'Enter your full name',
+                      hintText: 'Enter admin name',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
                     validator: Validators.validateName,
@@ -126,7 +123,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      hintText: 'Enter your email',
+                      hintText: 'Enter admin email',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     validator: Validators.validateEmail,
@@ -166,10 +163,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
                     textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _handleRegister(),
+                    onFieldSubmitted: (_) => _handleCreateAdmin(),
                     decoration: InputDecoration(
                       labelText: 'Confirm Password',
-                      hintText: 'Confirm your password',
+                      hintText: 'Confirm password',
                       prefixIcon: const Icon(Icons.lock_outlined),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -223,11 +220,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Register Button
+                  // Create Admin Button
                   ElevatedButton(
-                    onPressed: isLoading ? null : _handleRegister,
+                    onPressed: isLoading ? null : _handleCreateAdmin,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.orange,
                     ),
                     child: isLoading
                         ? const SizedBox(
@@ -236,29 +234,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text(
-                            'Create Account',
+                            'Create Admin Account',
                             style: TextStyle(fontSize: 16),
                           ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Login Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Already have an account? ',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                context.go(AppRouter.login);
-                              },
-                        child: const Text('Sign In'),
-                      ),
-                    ],
+                  // Info Box
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange[700]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Note: You will need to manually set the role to "admin" in Firebase Console after creation.',
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

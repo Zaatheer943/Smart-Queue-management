@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:queuewise/app/constants/app_constants.dart';
 import 'package:queuewise/core/errors/exceptions.dart';
 import 'package:queuewise/features/queues/domain/repositories/queue_repository.dart';
+import 'package:queuewise/features/queues/domain/services/queue_calculation_service.dart';
 import 'package:queuewise/shared/models/queue_model.dart';
 import 'package:queuewise/shared/models/token_model.dart';
 
@@ -157,6 +158,10 @@ class QueueRepositoryImpl implements QueueRepository {
 
         transaction.update(queueDocRef, updatedQueue.toFirestore());
 
+        // Fetch user details
+        final userDoc = await firestore.collection('users').doc(userId).get();
+        final userData = userDoc.data() as Map<String, dynamic>?;
+
         // Create token
         final tokenRef = queueDocRef.collection(AppConstants.tokensCollection).doc();
         final estimatedWait = (latestQueue.totalWaiting * latestQueue.averageServiceDuration);
@@ -167,6 +172,9 @@ class QueueRepositoryImpl implements QueueRepository {
           organisationId: organisationId,
           serviceId: serviceId,
           userId: userId,
+          userName: userData?['name'] as String? ?? '',
+          userEmail: userData?['email'] as String? ?? '',
+          userPhone: userData?['phone'] as String? ?? '',
           tokenNumber: nextTokenNumber,
           status: AppConstants.tokenStatusWaiting,
           joinedAt: DateTime.now(),
@@ -364,5 +372,297 @@ class QueueRepositoryImpl implements QueueRepository {
       debugPrint('Error updating queue stats: $e');
       throw DatabaseException('Failed to update queue stats');
     }
+  }
+
+  @override
+  Future<TokenModel?> callNextCustomer(String organisationId, String queueId) async {
+    try {
+      return await firestore.runTransaction((transaction) async {
+        final queueRef = firestore
+            .collection(AppConstants.organisationsCollection)
+            .doc(organisationId)
+            .collection(AppConstants.queuesCollection)
+            .doc(queueId);
+
+        final queueDoc = await transaction.get(queueRef);
+        if (!queueDoc.exists) {
+          throw DatabaseException('Queue not found');
+        }
+
+        final queue = QueueModel.fromFirestore(queueDoc);
+
+        // Find next waiting token
+        final tokensQuery = firestore
+            .collection(AppConstants.organisationsCollection)
+            .doc(organisationId)
+            .collection(AppConstants.queuesCollection)
+            .doc(queueId)
+            .collection(AppConstants.tokensCollection)
+            .where('status', isEqualTo: AppConstants.tokenStatusWaiting)
+            .orderBy('tokenNumber')
+            .limit(1);
+
+        final tokensSnapshot = await tokensQuery.get();
+        if (tokensSnapshot.docs.isEmpty) {
+          return null; // No waiting customers
+        }
+
+        final tokenDoc = tokensSnapshot.docs.first;
+        final token = TokenModel.fromFirestore(tokenDoc);
+
+        // Validate status transition
+        if (!QueueCalculationService.isValidStatusTransition(
+            token.status,
+            AppConstants.tokenStatusCalled,
+        )) {
+          throw DatabaseException('Invalid status transition');
+        }
+
+        // Update token status
+        final tokenRef = queueRef.collection(AppConstants.tokensCollection).doc(token.id);
+        transaction.update(tokenRef, {
+          'status': AppConstants.tokenStatusCalled,
+          'calledAt': Timestamp.fromDate(DateTime.now()),
+        });
+
+        // Update queue current serving number
+        transaction.update(queueRef, {
+          'currentServingNumber': token.tokenNumber,
+          'updatedAt': Timestamp.fromDate(DateTime.now()),
+        });
+
+        return token.copyWith(
+          status: AppConstants.tokenStatusCalled,
+          calledAt: DateTime.now(),
+        );
+      });
+    } on DatabaseException {
+      rethrow;
+    } catch (e) {
+      debugPrint('Error calling next customer: $e');
+      throw DatabaseException('Failed to call next customer');
+    }
+  }
+
+  @override
+  Future<void> startServing(String tokenId) async {
+    try {
+      await _updateTokenStatus(
+        tokenId,
+        AppConstants.tokenStatusServing,
+        {'servedAt': Timestamp.fromDate(DateTime.now())},
+      );
+    } catch (e) {
+      debugPrint('Error starting service: $e');
+      throw DatabaseException('Failed to start service');
+    }
+  }
+
+  @override
+  Future<void> completeService(String tokenId) async {
+    try {
+      await firestore.runTransaction((transaction) async {
+        final tokenData = await _findTokenForTransaction(transaction, tokenId);
+        if (tokenData == null) {
+          throw DatabaseException('Token not found');
+        }
+
+        final token = TokenModel.fromFirestore(tokenData['doc']);
+        final queueRef = tokenData['queueRef'] as DocumentReference;
+
+        // Validate status transition
+        if (!QueueCalculationService.isValidStatusTransition(
+            token.status,
+            AppConstants.tokenStatusServed,
+        )) {
+          throw DatabaseException('Invalid status transition');
+        }
+
+        // Update token status
+        final tokenRef = queueRef.collection(AppConstants.tokensCollection).doc(tokenId);
+        transaction.update(tokenRef, {
+          'status': AppConstants.tokenStatusServed,
+          'servedAt': Timestamp.fromDate(DateTime.now()),
+        });
+
+        // Update queue stats
+        final queueDoc = await transaction.get(queueRef);
+        if (queueDoc.exists) {
+          final queue = QueueModel.fromFirestore(queueDoc);
+          transaction.update(queueRef, {
+            'totalWaiting': queue.totalWaiting - 1 > 0 ? queue.totalWaiting - 1 : 0,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
+        }
+      });
+    } on DatabaseException {
+      rethrow;
+    } catch (e) {
+      debugPrint('Error completing service: $e');
+      throw DatabaseException('Failed to complete service');
+    }
+  }
+
+  @override
+  Future<void> skipCustomer(String tokenId) async {
+    try {
+      await _updateTokenStatus(
+        tokenId,
+        AppConstants.tokenStatusNoShow,
+        {},
+      );
+    } catch (e) {
+      debugPrint('Error skipping customer: $e');
+      throw DatabaseException('Failed to skip customer');
+    }
+  }
+
+  @override
+  Future<void> recallCustomer(String tokenId) async {
+    try {
+      await _updateTokenStatus(
+        tokenId,
+        AppConstants.tokenStatusCalled,
+        {'calledAt': Timestamp.fromDate(DateTime.now())},
+      );
+    } catch (e) {
+      debugPrint('Error recalling customer: $e');
+      throw DatabaseException('Failed to recall customer');
+    }
+  }
+
+  @override
+  Future<void> markNoShow(String tokenId) async {
+    try {
+      await _updateTokenStatus(
+        tokenId,
+        AppConstants.tokenStatusNoShow,
+        {},
+      );
+    } catch (e) {
+      debugPrint('Error marking no-show: $e');
+      throw DatabaseException('Failed to mark no-show');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getQueueStatistics(String organisationId) async {
+    try {
+      // Get all queues for the organisation
+      final queuesSnapshot = await firestore
+          .collection(AppConstants.organisationsCollection)
+          .doc(organisationId)
+          .collection(AppConstants.queuesCollection)
+          .get();
+
+      int totalWaiting = 0;
+      int currentlyServing = 0;
+      int completedToday = 0;
+      int totalQueues = queuesSnapshot.docs.length;
+
+      for (final queueDoc in queuesSnapshot.docs) {
+        final queueData = queueDoc.data();
+        totalWaiting += queueData['totalWaiting'] as int? ?? 0;
+        currentlyServing += queueData['currentServingNumber'] as int? ?? 0;
+
+        // Count completed tokens (without date filter to avoid index requirement)
+        final tokensSnapshot = await queueDoc.reference
+            .collection(AppConstants.tokensCollection)
+            .where('status', isEqualTo: AppConstants.tokenStatusServed)
+            .get();
+        
+        // Filter by date in memory
+        final today = DateTime.now();
+        final todayMidnight = DateTime(today.year, today.month, today.day);
+        for (final tokenDoc in tokensSnapshot.docs) {
+          final servedAt = tokenDoc.data()['servedAt'] as Timestamp?;
+          if (servedAt != null) {
+            final servedDate = servedAt.toDate();
+            if (servedDate.isAfter(todayMidnight) || servedDate.isAtSameMomentAs(todayMidnight)) {
+              completedToday++;
+            }
+          }
+        }
+      }
+
+      return {
+        'totalWaiting': totalWaiting,
+        'currentlyServing': currentlyServing,
+        'completedToday': completedToday,
+        'totalQueues': totalQueues,
+      };
+    } catch (e) {
+      debugPrint('Error getting queue statistics: $e');
+      throw DatabaseException('Failed to get queue statistics');
+    }
+  }
+
+  /// Helper method to update token status with validation
+  Future<void> _updateTokenStatus(
+    String tokenId,
+    String newStatus,
+    Map<String, dynamic> additionalFields,
+  ) async {
+    await firestore.runTransaction((transaction) async {
+      final tokenData = await _findTokenForTransaction(transaction, tokenId);
+      if (tokenData == null) {
+        throw DatabaseException('Token not found');
+      }
+
+      final token = TokenModel.fromFirestore(tokenData['doc']);
+
+      // Validate status transition
+      if (!QueueCalculationService.isValidStatusTransition(
+          token.status,
+          newStatus,
+      )) {
+        throw DatabaseException('Invalid status transition');
+      }
+
+      final tokenRef = tokenData['tokenRef'] as DocumentReference;
+      transaction.update(tokenRef, {
+        'status': newStatus,
+        ...additionalFields,
+      });
+    });
+  }
+
+  /// Helper method to find token across organisations for transactions
+  Future<Map<String, dynamic>?> _findTokenForTransaction(
+    Transaction transaction,
+    String tokenId,
+  ) async {
+    final orgsSnapshot = await firestore
+        .collection(AppConstants.organisationsCollection)
+        .get();
+
+    for (final orgDoc in orgsSnapshot.docs) {
+      final queuesSnapshot = await firestore
+          .collection(AppConstants.organisationsCollection)
+          .doc(orgDoc.id)
+          .collection(AppConstants.queuesCollection)
+          .get();
+
+      for (final queueDoc in queuesSnapshot.docs) {
+        final queueRef = firestore
+            .collection(AppConstants.organisationsCollection)
+            .doc(orgDoc.id)
+            .collection(AppConstants.queuesCollection)
+            .doc(queueDoc.id);
+
+        final tokenRef = queueRef.collection(AppConstants.tokensCollection).doc(tokenId);
+        final tokenSnapshot = await transaction.get(tokenRef);
+
+        if (tokenSnapshot.exists) {
+          return {
+            'doc': tokenSnapshot,
+            'tokenRef': tokenRef,
+            'queueRef': queueRef,
+          };
+        }
+      }
+    }
+
+    return null;
   }
 }

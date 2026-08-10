@@ -18,7 +18,8 @@ class ActiveQueueScreen extends ConsumerStatefulWidget {
 }
 
 class _ActiveQueueScreenState extends ConsumerState<ActiveQueueScreen> {
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     if (user == null) {
       return const Scaffold(
@@ -31,6 +32,10 @@ class _ActiveQueueScreenState extends ConsumerState<ActiveQueueScreen> {
     final queue = queueState.queue;
     final isLoading = queueState.isLoading;
     final errorMessage = queueState.errorMessage;
+    final peopleAhead = queueState.peopleAhead;
+
+    // Use state token (realtime stream simplified for now)
+    final displayToken = activeToken;
 
     if (isLoading && activeToken == null) {
       return const Scaffold(
@@ -65,7 +70,7 @@ class _ActiveQueueScreenState extends ConsumerState<ActiveQueueScreen> {
       );
     }
 
-    if (activeToken == null) {
+    if (displayToken == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('My Queue')),
         body: Center(
@@ -109,28 +114,28 @@ class _ActiveQueueScreenState extends ConsumerState<ActiveQueueScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Token Card
-            _TokenCard(token: activeToken, queue: queue),
+            _TokenCard(token: displayToken, queue: queue),
             const SizedBox(height: 24),
 
             // Queue Info Card
-            _QueueInfoCard(token: activeToken, queue: queue),
+            _QueueInfoCard(token: displayToken, queue: queue, peopleAhead: peopleAhead),
             const SizedBox(height: 24),
 
             // Status Card
-            _StatusCard(token: activeToken),
+            _StatusCard(token: displayToken),
             const SizedBox(height: 24),
 
             // Cancel Button
-            if (activeToken.isActive)
+            if (displayToken.isActive)
               ElevatedButton.icon(
                 onPressed: () {
-                  _showCancelDialog(activeToken);
+                  _showCancelDialog(displayToken);
                 },
                 icon: const Icon(Icons.cancel),
                 label: const Text('Cancel Queue'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
@@ -269,12 +274,16 @@ class _TokenCard extends StatelessWidget {
 class _QueueInfoCard extends StatelessWidget {
   final TokenModel token;
   final dynamic queue;
+  final int peopleAhead;
 
-  const _QueueInfoCard({required this.token, required this.queue});
+  const _QueueInfoCard({
+    required this.token,
+    required this.queue,
+    required this.peopleAhead,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final peopleAhead = queue?.totalWaiting ?? 0;
     final estimatedWait = token.estimatedWaitMinutes;
 
     return Card(
