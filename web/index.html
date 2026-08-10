@@ -31,16 +31,62 @@
 
   <title>queuewise</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    #mobile-frame {
+      width: 375px;
+      height: 812px;
+      background-color: #ffffff;
+      border-radius: 40px;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      position: relative;
+      border: 8px solid #333;
+    }
+
+    #mobile-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 30px;
+      background-color: #333;
+      border-radius: 0 0 20px 20px;
+      z-index: 1000;
+    }
+
+    #flutter_target {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="mobile-frame">
+    <div id="mobile-notch"></div>
+    <div id="flutter_target">
+      <!--
+        You can customize the "flutter_bootstrap.js" script.
+        This is useful to provide a custom configuration to the Flutter loader
+        or to give the user feedback during the initialization process.
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+        For more details:
+        * https://docs.flutter.dev/platform-integration/web/initialization
+      -->
+      <script src="flutter_bootstrap.js" async></script>
+    </div>
+  </div>
 </body>
 </html>
